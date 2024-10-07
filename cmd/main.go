@@ -15,10 +15,22 @@ func main() {
 
 	s.Set("key1", "val1")
 	s.Set("key2", "123")
-	ans1 := s.GetKind("key1")
-	ans2 := s.GetKind("key2")
-	ans3 := s.GetKind("key3")
-	fmt.Println(ans1)
-	fmt.Println(ans2)
-	fmt.Println(ans3)
+	type1 := s.GetKind("key1")
+	type2 := s.GetKind("key2")
+	type3 := s.GetKind("key3")
+	fmt.Println(type1)
+	fmt.Println(type2)
+	fmt.Println(type3)
+	val1 := s.Get("key1")
+	if val1 != nil {
+		fmt.Println(*val1)
+	} else {
+		fmt.Println("KeyError")
+	}
+	val2 := s.Get("key3")
+	if val2 != nil {
+		fmt.Println(*val2)
+	} else {
+		fmt.Println("KeyError")
+	}
 }
