@@ -7,6 +7,7 @@ import (
 )
 
 func main() {
+	fmt.Println("FIRST HW")
 	var s, err = storage.NewStorage()
 
 	if err != nil {
