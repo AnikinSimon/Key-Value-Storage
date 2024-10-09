@@ -1,9 +1,11 @@
 package storage
 
 import (
+	"log"
 	"strconv"
 
 	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 type value struct {
@@ -19,19 +21,27 @@ const (
 	kindUndefind kind = "UND"
 )
 
+var atomicLevel = zap.NewAtomicLevelAt(zap.InfoLevel)
+
 type Storage struct {
 	inner  map[string]value
 	logger *zap.Logger
 }
 
 func NewStorage() (Storage, error) {
-	logger, err := zap.NewProduction()
-	if err != nil {
-		return Storage{}, err
+	loggerCfg := zap.Config{
+		Level:            atomicLevel,
+		Development:      true,
+		Encoding:         "json",
+		EncoderConfig:    zap.NewProductionEncoderConfig(),
+		OutputPaths:      []string{"stdout"},
+		ErrorOutputPaths: []string{"stderr"},
 	}
 
-	defer logger.Sync()
-	logger.Info("New storage created")
+	logger, err := loggerCfg.Build()
+	if err != nil {
+		log.Fatal(err)
+	}
 
 	return Storage{
 		inner:  make(map[string]value),
@@ -39,8 +49,25 @@ func NewStorage() (Storage, error) {
 	}, nil
 }
 
+func (r Storage) SetLoggerLevel(lvl string) {
+	switch lvl {
+	case "debug":
+		atomicLevel.SetLevel(zapcore.DebugLevel)
+	case "info":
+		atomicLevel.SetLevel(zapcore.InfoLevel)
+	case "warn":
+		atomicLevel.SetLevel(zapcore.WarnLevel)
+	case "error":
+		atomicLevel.SetLevel(zapcore.ErrorLevel)
+	case "fatal":
+		atomicLevel.SetLevel(zapcore.FatalLevel)
+	default:
+		return
+	}
+}
+
 func (r Storage) Set(key, val string) {
-	defer r.logger.Sync()
+	// defer r.logger.Sync()
 	switch k := getType(val); k {
 	case kindInt, kindString:
 		r.inner[key] = value{
@@ -51,15 +78,15 @@ func (r Storage) Set(key, val string) {
 		r.logger.Warn("Undefined type of value")
 	}
 
-	r.logger.Info("New key and value added",
-		zap.String("Key", key),
-		zap.String("Value", val),
-	)
+	// r.logger.Info("New key and value added",
+	// 	zap.String("Key", key),
+	// 	zap.String("Value", val),
+	// )
 }
 
 func (r Storage) Get(key string) *string {
 	res, ok := r.get(key)
-	defer r.logger.Sync()
+	// defer r.logger.Sync()
 	if !ok {
 		r.logger.Warn("KeyError",
 			zap.String("Wrong key", key),
@@ -67,10 +94,10 @@ func (r Storage) Get(key string) *string {
 		return nil
 	}
 
-	r.logger.Info("Key obtained",
-		zap.String("Key", key),
-		zap.String("Value", res.v),
-	)
+	// r.logger.Info("Key obtained",
+	// 	zap.String("Key", key),
+	// 	zap.String("Value", res.v),
+	// )
 
 	return &res.v
 }
@@ -80,12 +107,12 @@ func (r Storage) GetKind(key string) string {
 	if !ok {
 		return "KeyError"
 	}
-	defer r.logger.Sync()
+	// defer r.logger.Sync()
 
-	r.logger.Info("Kind obtained",
-		zap.String("Value", res.v),
-		zap.String("Type", string(res.k)),
-	)
+	// r.logger.Info("Kind obtained",
+	// 	zap.String("Value", res.v),
+	// 	zap.String("Type", string(res.k)),
+	// )
 
 	return string(res.k)
 }

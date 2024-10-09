@@ -13,6 +13,8 @@ func main() {
 		log.Fatal(err)
 	}
 
+	s.SetLoggerLevel("fatal")
+
 	s.Set("key1", "val1")
 	s.Set("key2", "123")
 
