@@ -21,6 +21,12 @@ func TestGet(t *testing.T) {
 			t.Errorf("Wrong Value by key. Actual: %s. Expected: %s", actualVal, expectedVals[i])
 		}
 	}
+	wrongKeys := []string{"key6", "key4", "key5"}
+	for _, k := range wrongKeys {
+		if actualVal := s.Get(k); actualVal != nil {
+			t.Errorf("Get value for unexisting key %s", k)
+		}
+	}
 }
 
 func TestGetKind(t *testing.T) {
