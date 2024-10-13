@@ -5,69 +5,49 @@ import (
 	"strconv"
 
 	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 )
 
 type value struct {
 	v string
-	k kind
+	k Kind
 }
 
-type kind string
+type Kind string
 
 const (
-	kindInt      kind = "D"
-	kindString   kind = "S"
-	kindUndefind kind = "UND"
+	kindInt      Kind = "D"
+	kindString   Kind = "S"
+	kindUndefind Kind = "UND"
 )
 
-var atomicLevel = zap.NewAtomicLevelAt(zap.InfoLevel)
-
 type Storage struct {
-	inner  map[string]value
-	logger *zap.Logger
+	inner       map[string]value
+	logger      *zap.Logger
+	loggerCheck bool
 }
 
 func NewStorage() (Storage, error) {
-	loggerCfg := zap.Config{
-		Level:            atomicLevel,
-		Development:      true,
-		Encoding:         "json",
-		EncoderConfig:    zap.NewProductionEncoderConfig(),
-		OutputPaths:      []string{"stdout"},
-		ErrorOutputPaths: []string{"stderr"},
-	}
+	logger, err := zap.NewProduction()
 
-	logger, err := loggerCfg.Build()
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
 	return Storage{
-		inner:  make(map[string]value),
-		logger: logger,
+		inner:       make(map[string]value),
+		logger:      logger,
+		loggerCheck: false,
 	}, nil
 }
 
-func (r Storage) SetLoggerLevel(lvl string) {
-	switch lvl {
-	case "debug":
-		atomicLevel.SetLevel(zapcore.DebugLevel)
-	case "info":
-		atomicLevel.SetLevel(zapcore.InfoLevel)
-	case "warn":
-		atomicLevel.SetLevel(zapcore.WarnLevel)
-	case "error":
-		atomicLevel.SetLevel(zapcore.ErrorLevel)
-	case "fatal":
-		atomicLevel.SetLevel(zapcore.FatalLevel)
-	default:
-		return
-	}
+func (r Storage) SwitchTestLogger() {
+	(&r).loggerCheck = !r.loggerCheck
 }
 
 func (r Storage) Set(key, val string) {
-	// defer r.logger.Sync()
+	if r.loggerCheck {
+		defer r.logger.Sync()
+	}
 	switch k := getType(val); k {
 	case kindInt, kindString:
 		r.inner[key] = value{
@@ -75,46 +55,59 @@ func (r Storage) Set(key, val string) {
 			k: k,
 		}
 	case kindUndefind:
-		r.logger.Warn("Undefined type of value")
+		if r.loggerCheck {
+			r.logger.Warn("Undefined type of value")
+		}
 	}
-
-	// r.logger.Info("New key and value added",
-	// 	zap.String("Key", key),
-	// 	zap.String("Value", val),
-	// )
+	if r.loggerCheck {
+		r.logger.Info("New key and value added",
+			zap.String("Key", key),
+			zap.String("Value", val),
+		)
+	}
 }
 
 func (r Storage) Get(key string) *string {
 	res, ok := r.get(key)
-	// defer r.logger.Sync()
+	if r.loggerCheck {
+		defer r.logger.Sync()
+	}
+
 	if !ok {
-		r.logger.Warn("KeyError",
-			zap.String("Wrong key", key),
-		)
+		if r.loggerCheck {
+			r.logger.Warn("KeyError",
+				zap.String("Wrong key", key),
+			)
+		}
 		return nil
 	}
 
-	// r.logger.Info("Key obtained",
-	// 	zap.String("Key", key),
-	// 	zap.String("Value", res.v),
-	// )
+	if r.loggerCheck {
+		r.logger.Info("Key obtained",
+			zap.String("Key", key),
+			zap.String("Value", res.v),
+		)
+	}
 
 	return &res.v
 }
 
-func (r Storage) GetKind(key string) string {
+func (r Storage) GetKind(key string) (Kind, bool) {
 	res, ok := r.get(key)
 	if !ok {
-		return "KeyError"
+		return kindUndefind, false
 	}
-	// defer r.logger.Sync()
 
-	// r.logger.Info("Kind obtained",
-	// 	zap.String("Value", res.v),
-	// 	zap.String("Type", string(res.k)),
-	// )
+	if r.loggerCheck {
+		defer r.logger.Sync()
 
-	return string(res.k)
+		r.logger.Info("Kind obtained",
+			zap.String("Value", res.v),
+			zap.String("Type", string(res.k)),
+		)
+	}
+
+	return res.k, true
 }
 
 func (r Storage) get(key string) (value, bool) {
@@ -125,11 +118,11 @@ func (r Storage) get(key string) (value, bool) {
 	return res, true
 }
 
-func getType(val string) kind {
+func getType(val string) Kind {
 	var conv any
-	conv, ok := strconv.Atoi(val)
-	if ok != nil {
-		conv = val
+	conv, err := strconv.Atoi(val)
+	if err != nil {
+		return kindString
 	}
 	switch conv.(type) {
 	case int:

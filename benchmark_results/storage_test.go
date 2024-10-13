@@ -12,7 +12,7 @@ func BenchmarkGet(b *testing.B) {
 		return
 	}
 
-	s.SetLoggerLevel("fatal")
+	s.SwitchTestLogger()
 
 	for i := 0; i < b.N; i++ {
 		s.Set(strconv.Itoa(i), strconv.Itoa(i))
@@ -32,7 +32,7 @@ func BenchmarkGetKind(b *testing.B) {
 	if err != nil {
 		return
 	}
-	s.SetLoggerLevel("fatal")
+	s.SwitchTestLogger()
 
 	for i := 0; i < b.N; i++ {
 		s.Set(strconv.Itoa(i), strconv.Itoa(i))
@@ -51,7 +51,7 @@ func BenchmarkSet(b *testing.B) {
 	if err != nil {
 		return
 	}
-	s.SetLoggerLevel("fatal")
+	s.SwitchTestLogger()
 
 	for i := 0; i < b.N; i++ {
 		keyVal := strconv.Itoa(i)
@@ -64,7 +64,7 @@ func BenchmarkGetSet(b *testing.B) {
 	if err != nil {
 		return
 	}
-	s.SetLoggerLevel("fatal")
+	s.SwitchTestLogger()
 
 	for i := 0; i < b.N; i++ {
 		keyVal := strconv.Itoa(i)

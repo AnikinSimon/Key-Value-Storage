@@ -7,13 +7,12 @@ import (
 )
 
 func main() {
-	var s, err = storage.NewStorage()
-
+	s, err := storage.NewStorage()
 	if err != nil {
-		log.Fatal(err)
+		log.Panic(err)
 	}
 
-	s.SetLoggerLevel("fatal")
+	s.SwitchTestLogger()
 
 	s.Set("key1", "val1")
 	s.Set("key2", "123")
