@@ -1,0 +1,25 @@
+[
+	{
+		"command": "RPUSH",
+		"key": "list1",
+		"args": [1,2,3,4,5,6,7,8,9,10]
+	},
+	{
+		"command": "LPOP",
+		"key": "list1",
+		"args": [2]
+	},
+	{
+		"command": "LPOP",
+		"key": "list1",
+		"args": [
+			2,
+			-2
+		]
+	},
+	{
+		"command": "LPOP",
+		"key": "list1",
+		"args": []
+	}
+]
