@@ -1,0 +1,32 @@
+[
+    {
+        "command": "RPUSH",
+        "key": "key1",
+        "args": [1,2,3,4,5,6,7,8,9,10]
+    },
+    {
+        "command": "SET",
+        "key": "key1",
+        "args": [1]
+    },
+    {
+        "command": "SET",
+        "key": "key1",
+        "args": [134]
+    },
+    {
+        "command": "RPUSH",
+        "key": "key2",
+        "args": [1,2,3,4,5,6,7,8,9,10]
+    },
+    {
+        "command": "RPUSH",
+        "key": "key3",
+        "args": [1,2,3,4,5,6,7,8,9,10]
+    },
+    {
+        "command": "LPOP",
+        "key": "key1",
+        "args": [2, -2]
+    }
+]
