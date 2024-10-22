@@ -1,28 +1,30 @@
 package main
 
 import (
+	"golangProject/internal/pkg/server"
 	"fmt"
 	"golangProject/internal/pkg/storage"
 	"log"
+	"os"
+	"os/signal"
+	"syscall"
 )
 
 func main() {
-	s, err := storage.NewStorage()
+	store, err := storage.NewStorage(storage.WithoutLogging())
 	if err != nil {
-		log.Panic(err)
+		log.Panic(fmt.Errorf("InitializingError: %w", err))
 	}
+	store.ReadStateFromFile() // считывание состояния бд из .json
+	serve := server.New(":8090", &store)
 
-	s.SwitchTestLogger()
+	sigChan := make(chan os.Signal, 1)
+	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
-	s.Set("key1", "val1")
-	s.Set("key2", "123")
+	go func() {
+		serve.Start()
+	}()
+	<-sigChan
 
-	fmt.Println(s.Get("key1"))
-	fmt.Println(s.Get("key2"))
-	fmt.Println(s.Get("key3"))
-
-	fmt.Println(s.GetKind("key1"))
-	fmt.Println(s.GetKind("key2"))
-	fmt.Println(s.GetKind("key3"))
-
+	store.WriteStateToFile()
 }
