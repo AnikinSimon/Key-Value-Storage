@@ -38,9 +38,19 @@ const (
 	kindUndefind Kind = "UND"
 )
 
+type StructKind string
+
+const (
+	kindScalar   StructKind = "SCALAR"
+	kindArray    StructKind = "ARRAY"
+	kindMap      StructKind = "MAP"
+	kindNoStruct StructKind = "NOSTRUCTURE"
+)
+
 type Storage struct {
 	innerScalar map[string]value
 	innerArray  map[string]*Treap
+	innerKeys   map[string]StructKind
 	logger      *zap.Logger
 }
 
@@ -62,6 +72,7 @@ func NewStorage(opts ...StorageOption) (Storage, error) {
 	resStorage := Storage{
 		innerScalar: make(map[string]value),
 		innerArray:  make(map[string]*Treap),
+		innerKeys:   make(map[string]StructKind),
 		logger:      logger,
 	}
 
@@ -72,13 +83,27 @@ func NewStorage(opts ...StorageOption) (Storage, error) {
 	return resStorage, nil
 }
 
-func (r Storage) SET(key string, val any) {
+func (r *Storage) getStruct(key string) StructKind {
+	struct_kind, ok := r.innerKeys[key]
+	if !ok {
+		return kindNoStruct
+	}
+	return struct_kind
+}
+
+func (r Storage) SET(key string, val any) error {
+	struct_kind := r.getStruct(key)
+	if struct_kind == kindArray || struct_kind == kindMap {
+		return errors.New("KeyError: this key already exists and has different type")
+	}
 	new_val, err := newValue(val)
 	if err != nil {
 		r.logger.Error(err.Error())
-		return
+		return err
 	}
 	r.innerScalar[key] = new_val
+	r.innerKeys[key] = kindScalar
+	return nil
 }
 
 func (r Storage) GET(key string) *any {
@@ -125,9 +150,14 @@ func getType(val any) Kind {
 	}
 }
 
-func (r Storage) LPUSH(key string, args []any) {
+func (r Storage) LPUSH(key string, args []any) error {
 	if len(args) == 0 {
-		return
+		return errors.New("WrongArgs")
+	}
+
+	struct_kind := r.getStruct(key)
+	if struct_kind == kindScalar || struct_kind == kindMap {
+		return errors.New("KeyError: this key already exists and has different type")
 	}
 
 	if _, ok := r.innerArray[key]; !ok {
@@ -135,13 +165,24 @@ func (r Storage) LPUSH(key string, args []any) {
 	}
 
 	for _, arg := range args {
-		r.innerArray[key].PushFront(arg)
+		err := r.innerArray[key].PushFront(arg)
+		if err != nil {
+			return err
+		}
 	}
+	r.innerKeys[key] = kindArray
+
+	return nil
 }
 
-func (r Storage) RPUSH(key string, args []any) {
+func (r Storage) RPUSH(key string, args []any) error {
 	if len(args) == 0 {
-		return
+		return errors.New("WrongArgs")
+	}
+
+	struct_kind := r.getStruct(key)
+	if struct_kind == kindScalar || struct_kind == kindMap {
+		return errors.New("KeyError: this key already exists and has different type")
 	}
 
 	if _, ok := r.innerArray[key]; !ok {
@@ -149,13 +190,24 @@ func (r Storage) RPUSH(key string, args []any) {
 	}
 
 	for _, arg := range args {
-		r.innerArray[key].PushBack(arg)
+		err := r.innerArray[key].PushBack(arg)
+		if err != nil {
+			return err
+		}
 	}
+	r.innerKeys[key] = kindArray
+
+	return nil
 }
 
-func (r Storage) RADDTOSET(key string, args []any) {
+func (r Storage) RADDTOSET(key string, args []any) error {
 	if len(args) == 0 {
-		return
+		return errors.New("WrongArgs")
+	}
+
+	struct_kind := r.getStruct(key)
+	if struct_kind == kindScalar || struct_kind == kindMap {
+		return errors.New("KeyError: this key already exists and has different type")
 	}
 
 	if _, ok := r.innerArray[key]; !ok {
@@ -163,8 +215,14 @@ func (r Storage) RADDTOSET(key string, args []any) {
 	}
 
 	for _, arg := range args {
-		r.innerArray[key].PushBackToSet(arg)
+		err := r.innerArray[key].PushBackToSet(arg)
+		if err != nil {
+			return err
+		}
 	}
+	r.innerKeys[key] = kindArray
+
+	return nil
 }
 
 func (r Storage) LPOP(key string, args []any) ([]any, error) {

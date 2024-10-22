@@ -104,33 +104,36 @@ func split(n *node, k int) (*node, *node) {
 	}
 }
 
-func (trp *Treap) PushBack(val any) {
+func (trp *Treap) PushBack(val any) error {
 	new_node, err := newNode(val)
 	if err != nil {
-		return
+		return err
 	}
 	trp.root = merge(trp.root, new_node)
 	trp.incVal(new_node.value)
+	return nil
 }
 
-func (trp *Treap) PushFront(val any) {
+func (trp *Treap) PushFront(val any) error {
 	new_node, err := newNode(val)
 	if err != nil {
-		return
+		return err
 	}
 	trp.root = merge(new_node, trp.root)
 	trp.incVal(new_node.value)
+	return nil
 }
 
-func (trp *Treap) PushBackToSet(val any) {
+func (trp *Treap) PushBackToSet(val any) error {
 	new_node, err := newNode(val)
 	if err != nil {
-		return
+		return err
 	}
 	if _, ok := trp.mp[new_node.value]; !ok {
 		trp.PushBack(val)
 		trp.incVal(new_node.value)
 	}
+	return nil
 }
 
 func (trp *Treap) Get(index int) (any, bool) {

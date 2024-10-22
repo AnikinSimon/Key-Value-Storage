@@ -37,11 +37,12 @@ func (r *Server) newAPI() *gin.Engine {
 		ctx.JSON(http.StatusOK, "OK")
 	})
 
-	engine.PUT("/scalar/set/:key", r.handlerSet)
+	engine.POST("/scalar/set/:key", r.handlerSet)
 	engine.GET("/scalar/get/:key", r.handlerGet)
 
-	engine.PUT("array/rpush/:key", r.handlerRPUSH)
+	engine.POST("array/rpush/:key", r.handlerRPUSH)
 	engine.GET("array/rpop/:key", r.handlerRPOP)
+
 	return engine
 }
 
@@ -55,10 +56,16 @@ func (r *Server) handlerSet(ctx *gin.Context) {
 		return
 	}
 
-	r.store.SET(key, v.Value)
+	err := r.store.SET(key, v.Value)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadGateway, gin.H{
+			"status":  false,
+			"message": err.Error(),
+		})
+		return
+	}
 
 	ctx.Status(http.StatusOK)
-
 }
 
 func (r *Server) handlerRPUSH(ctx *gin.Context) {
@@ -71,10 +78,16 @@ func (r *Server) handlerRPUSH(ctx *gin.Context) {
 		return
 	}
 
-	r.store.RPUSH(key, v.Value)
+	err := r.store.RPUSH(key, v.Value)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadGateway, gin.H{
+			"status":  false,
+			"message": err.Error(),
+		})
+		return
+	}
 
 	ctx.Status(http.StatusOK)
-
 }
 
 func (r *Server) handlerGet(ctx *gin.Context) {
@@ -89,7 +102,6 @@ func (r *Server) handlerGet(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, Entry{
 		Value: *v,
 	})
-
 }
 
 func (r *Server) handlerRPOP(ctx *gin.Context) {
@@ -102,14 +114,20 @@ func (r *Server) handlerRPOP(ctx *gin.Context) {
 		return
 	}
 
-	vals, _ := r.store.RPOP(key, v.Value)
+	vals, err := r.store.RPOP(key, v.Value)
+	if err != nil {
+		ctx.AbortWithStatusJSON(http.StatusBadGateway, gin.H{
+			"status":  false,
+			"message": err.Error(),
+		})
+		return
+	}
 
 	ctx.JSON(http.StatusOK, Entry{
 		Value: vals,
 	})
-
 }
 
 func (r *Server) Start() {
-	r.newAPI().Run()
+	r.newAPI().Run(r.host)
 }
