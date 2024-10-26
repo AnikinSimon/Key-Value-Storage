@@ -26,8 +26,9 @@ func newValue(val any) (value, error) {
 }
 
 type StorageCondition struct {
-	InnerScalar map[string]value   `json:"innerscalar"`
-	InnerArray  map[string][]value `json:"innerarray"`
+	InnerScalar map[string]value            `json:"innerscalar"`
+	InnerArray  map[string][]value          `json:"innerarray"`
+	InnerMap    map[string]map[string]value `json:"innermap"`
 }
 
 type Kind string
@@ -50,6 +51,7 @@ const (
 type Storage struct {
 	innerScalar map[string]value
 	innerArray  map[string]*Treap
+	innerMap    map[string]map[string]value
 	innerKeys   map[string]StructKind
 	logger      *zap.Logger
 }
@@ -73,6 +75,7 @@ func NewStorage(opts ...StorageOption) (Storage, error) {
 		innerScalar: make(map[string]value),
 		innerArray:  make(map[string]*Treap),
 		innerKeys:   make(map[string]StructKind),
+		innerMap:    make(map[string]map[string]value),
 		logger:      logger,
 	}
 
@@ -89,6 +92,46 @@ func (r *Storage) getStruct(key string) StructKind {
 		return kindNoStruct
 	}
 	return struct_kind
+}
+
+func (r *Storage) HSET(key string, field string, val any) error {
+	struct_kind := r.getStruct(key)
+	if struct_kind == kindArray || struct_kind == kindScalar {
+		return errors.New("KeyError: this key already exists and has different type")
+	}
+
+	new_val, err := newValue(val)
+	if err != nil {
+		r.logger.Error(err.Error())
+		return err
+	}
+
+	_, ok := r.innerMap[key]
+	if !ok {
+		r.innerMap[key] = make(map[string]value)
+	}
+	r.innerMap[key][field] = new_val
+	return nil
+}
+
+func (r *Storage) HGET(key string, field string) *any {
+	res, ok := r.hget(key, field)
+
+	if !ok {
+		r.logger.Error("KeyError",
+			zap.String("Wrong key", key),
+		)
+		return nil
+	}
+	return &res.Val
+}
+
+func (r *Storage) hget(key string, field string) (value, bool) {
+	res, ok := r.innerMap[key][field]
+	if !ok {
+		return value{}, false
+	}
+	return res, true
 }
 
 func (r Storage) SET(key string, val any) error {
@@ -277,7 +320,7 @@ func (r Storage) LSET(key string, args []any) error {
 		r.logger.Error("KeyError", zap.String("Key doesn't exist", key))
 		return errors.New("KeyError")
 	}
-	if trp.Set(args[0].(int), args[1]) {
+	if trp.Set(int(args[0].(float64)), args[1]) {
 		return nil
 	}
 
@@ -295,7 +338,7 @@ func (r Storage) LGET(key string, args []any) (any, error) {
 		return -1, errors.New("KeyError")
 	}
 
-	ans, ok := trp.Get(args[0].(int))
+	ans, ok := trp.Get(int(args[0].(float64)))
 	if !ok {
 		return -1, errors.New("IndexOutOfRange")
 	}
@@ -337,6 +380,7 @@ func (r Storage) getState() StorageCondition {
 	toIncode := StorageCondition{
 		InnerScalar: r.innerScalar,
 		InnerArray:  inArr,
+		InnerMap:    r.innerMap,
 	}
 	return toIncode
 }
@@ -354,6 +398,12 @@ func (r Storage) recoverFromCondition(state StorageCondition) {
 			toPush = append(toPush, val.Val)
 		}
 		r.RPUSH(key, toPush)
+	}
+
+	for key, inHash := range state.InnerMap {
+		for field, val := range inHash {
+			r.HSET(key, field, val.Val)
+		}
 	}
 }
 

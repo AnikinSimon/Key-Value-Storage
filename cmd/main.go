@@ -1,8 +1,8 @@
 package main
 
 import (
-	"golangProject/internal/pkg/server"
 	"fmt"
+	"golangProject/internal/pkg/server"
 	"golangProject/internal/pkg/storage"
 	"log"
 	"os"
@@ -15,9 +15,9 @@ func main() {
 	if err != nil {
 		log.Panic(fmt.Errorf("InitializingError: %w", err))
 	}
-	store.ReadStateFromFile() // считывание состояния бд из .json
-	serve := server.New(":8090", &store)
 
+	store.ReadStateFromFile() // считывание состояния бд из .json
+	serve := server.New(":8080", &store)
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 

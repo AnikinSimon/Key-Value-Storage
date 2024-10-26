@@ -56,6 +56,7 @@ func (trp Treap) incVal(val value) {
 }
 
 func (trp Treap) decVal(val value) {
+
 	if cnt := trp.mp[val]; cnt != 1 {
 		trp.mp[val] -= 1
 	} else {
@@ -131,7 +132,6 @@ func (trp *Treap) PushBackToSet(val any) error {
 	}
 	if _, ok := trp.mp[new_node.value]; !ok {
 		trp.PushBack(val)
-		trp.incVal(new_node.value)
 	}
 	return nil
 }
@@ -143,7 +143,7 @@ func (trp *Treap) Get(index int) (any, bool) {
 	var less, equal, greater *node
 	less, greater = split(trp.root, index)
 	equal, greater = split(greater, 1)
-	res := equal.value
+	res := equal.value.Val
 	trp.root = merge(merge(less, equal), greater)
 	return res, true
 }
