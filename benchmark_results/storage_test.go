@@ -14,7 +14,7 @@ func BenchmarkGet(b *testing.B) {
 
 
 	for i := 0; i < b.N; i++ {
-		s.SET(strconv.Itoa(i), strconv.Itoa(i))
+		s.SET(strconv.Itoa(i), strconv.Itoa(i), 0)
 	}
 
 	b.ResetTimer()
@@ -33,7 +33,7 @@ func BenchmarkGetKind(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		s.SET(strconv.Itoa(i), strconv.Itoa(i))
+		s.SET(strconv.Itoa(i), strconv.Itoa(i), 0)
 	}
 
 	b.ResetTimer()
@@ -52,7 +52,7 @@ func BenchmarkSet(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		keyVal := strconv.Itoa(i)
-		s.SET(keyVal, keyVal)
+		s.SET(keyVal, keyVal, 0)
 	}
 }
 
@@ -64,7 +64,7 @@ func BenchmarkGetSet(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		keyVal := strconv.Itoa(i)
-		s.SET(keyVal, keyVal)
+		s.SET(keyVal, keyVal, 0)
 		s.GET(keyVal)
 	}
 }

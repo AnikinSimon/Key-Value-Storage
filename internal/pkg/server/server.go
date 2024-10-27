@@ -18,6 +18,11 @@ type Entry struct {
 	Value any `json:"value"`
 }
 
+type EntrySet struct {
+	Value any    `json:"value"`
+	Ex    uint32 `json:"ex,omitempty"`
+}
+
 type EntryArray struct {
 	Value []any `json:"value"`
 }
@@ -54,19 +59,21 @@ func (r *Server) newAPI() *gin.Engine {
 	engine.POST("array/lset/:key", r.handlerLSET)
 	engine.GET("array/lget/:key", r.handleLGET)
 
+	engine.POST("/expire/:key", r.handlerExpire)
+
 	return engine
 }
 
 func (r *Server) handlerSet(ctx *gin.Context) {
 	key := ctx.Param("key")
 
-	var v Entry
+	var v EntrySet
 	if err := json.NewDecoder(ctx.Request.Body).Decode(&v); err != nil {
 		ctx.AbortWithStatus(http.StatusBadGateway)
 		return
 	}
 
-	err := r.store.SET(key, v.Value)
+	err := r.store.SET(key, v.Value, int64(v.Ex))
 	if err != nil {
 		fmt.Println(err)
 		ctx.AbortWithStatusJSON(http.StatusBadGateway, gin.H{
@@ -287,6 +294,22 @@ func (r *Server) handleLGET(ctx *gin.Context) {
 
 	ctx.JSON(http.StatusOK, Entry{
 		Value: vals,
+	})
+}
+
+func (r *Server) handlerExpire(ctx *gin.Context) {
+	key := ctx.Param("key")
+
+	var v Entry
+	if err := json.NewDecoder(ctx.Request.Body).Decode(&v); err != nil {
+		ctx.AbortWithStatus(http.StatusBadGateway)
+		return
+	}
+
+	expireCode := r.store.Expire(key, int64(v.Value.(float64)))
+	
+	ctx.JSON(http.StatusOK, Entry{
+		Value: expireCode,
 	})
 }
 
