@@ -2,7 +2,6 @@ package storage
 
 import (
 	"errors"
-	"fmt"
 	"log"
 	"math"
 	"slices"
@@ -166,8 +165,6 @@ func (r *Storage) SET(key string, val any, expireAt int64) error {
 	r.innerKeys[key] = kindScalar
 	r.Expire(key, expireAt)
 
-	fmt.Println(key, val, expireAt)
-	fmt.Println(r.innerExpire)
 	return nil
 }
 

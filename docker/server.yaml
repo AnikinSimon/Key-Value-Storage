@@ -3,4 +3,6 @@ services:
     image: server:0.0.1
     container_name: docker-server
     ports:
-      - "8090:8090"
+      - "8070:8070"
+    volumes:
+    - ./:/storage_state

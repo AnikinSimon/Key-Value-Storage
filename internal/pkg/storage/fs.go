@@ -27,7 +27,7 @@ func cmdFilePath() string {
 		return ""
 	}
 
-	return path.Join(cwd, "commands.json")
+	return path.Join(cwd, "../storage_state/commands.json")
 }
 
 func stateFilePath() string {
@@ -37,7 +37,7 @@ func stateFilePath() string {
 		return ""
 	}
 
-	return path.Join(cwd, "storage_state.json")
+	return path.Join(cwd, "../storage_state/storage_state.json")
 }
 
 func (r *Storage) ReadTasksFromFile() ([]Task, error) {

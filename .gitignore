@@ -26,3 +26,4 @@ go.work.sum
 
 # JSON state file
 storage_state.json
+commands.json

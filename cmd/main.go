@@ -17,7 +17,7 @@ func main() {
 	}
 
 	store.ReadStateFromFile() // считывание состояния бд из .json
-	serve := server.New(":8090", store)
+	serve := server.New(":8070", store)
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
