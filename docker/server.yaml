@@ -3,6 +3,8 @@ services:
     image: server:0.0.1
     container_name: docker-server
     ports:
-      - "8070:8070"
+      - "7500:7500"
+    environment:
+    - SERVER_PORT=7500
     volumes:
-    - ./:/storage_state
+    - ./storage_state:/storage_state
