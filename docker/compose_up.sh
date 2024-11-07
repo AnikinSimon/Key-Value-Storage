@@ -1,1 +1,1 @@
-docker compose -f ./docker/server.yaml up -d
+docker compose -f ./docker/server.yaml up

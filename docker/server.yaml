@@ -1,10 +1,31 @@
 services:
+  postgres:
+    image: postgres:13.3
+    environment:
+      POSTGRES_DB: "storage"
+      POSTGRES_USER: "Semyon"
+      POSTGRES_PASSWORD: "Mypass"
+    ports:
+        - "5432:5432"
+    volumes:
+        - postgres:/var/lib/postgresql/data
   server:
+    restart: always
+    depends_on:
+        - "postgres"
     image: server:0.0.1
+    build:
+        dockerfile: Dockerfile.server
+        context: .
     container_name: docker-server
     ports:
-      - "7500:7500"
+      - "8090:8090"
     environment:
-    - SERVER_PORT=7500
+      SERVER_PORT: 8090
+      POSTGRES: postgresql://Semyon:Mypass@localhost:5432/storage?sslmode=disable
     volumes:
     - ./storage_state:/storage_state
+
+volumes:
+  postgres:
+  storage_state:

@@ -2,6 +2,7 @@ package storage
 
 import (
 	"errors"
+	"fmt"
 	"log"
 	"math"
 	"slices"
@@ -463,6 +464,7 @@ func (r *Storage) getState() StorageCondition {
 }
 
 func (r *Storage) recoverFromCondition(state StorageCondition) {
+	fmt.Println(state)
 	r.innerExpire = state.InnerExpire
 
 	innerScalarState := state.InnerScalar
@@ -562,6 +564,7 @@ func (r *Storage) startExpirationChecker(closeChan chan struct{}, tm time.Durati
 			return
 		case <-time.After(tm):
 			r.garbageCollector()
+			r.WriteStateToDB()
 		}
 	}
 }
