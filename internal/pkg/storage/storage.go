@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"database/sql"
 	"errors"
 	"fmt"
 	"log"
@@ -11,6 +12,7 @@ import (
 
 	"go.uber.org/zap"
 )
+
 
 type value struct {
 	Val any  `json:"value"`
@@ -53,13 +55,15 @@ const (
 )
 
 type Storage struct {
-	innerScalar map[string]value
-	innerArray  map[string]*Treap
-	innerMap    map[string]map[string]value
-	innerKeys   map[string]StructKind
-	innerExpire map[string]int64
-	mutex       *sync.RWMutex
-	logger      *zap.Logger
+	innerScalar  map[string]value
+	innerArray   map[string]*Treap
+	innerMap     map[string]map[string]value
+	innerKeys    map[string]StructKind
+	innerExpire  map[string]int64
+	mutex        *sync.RWMutex
+	logger       *zap.Logger
+	dbConnection *sql.DB
+	appCfg       *appConfig
 }
 
 type StorageOption func(*Storage)
@@ -77,14 +81,26 @@ func NewStorage(opts ...StorageOption) (*Storage, error) {
 		log.Panic(err)
 	}
 
+	appConfig, err := getConfig()
+	if err != nil {
+		return nil, err
+	}
+
+	db, err := InitializeDb(appConfig)
+	if err != nil {
+		return nil, err
+	}
+
 	resStorage := &Storage{
-		innerScalar: make(map[string]value),
-		innerArray:  make(map[string]*Treap),
-		innerKeys:   make(map[string]StructKind),
-		innerMap:    make(map[string]map[string]value),
-		innerExpire: make(map[string]int64),
-		mutex:       new(sync.RWMutex),
-		logger:      logger,
+		innerScalar:  make(map[string]value),
+		innerArray:   make(map[string]*Treap),
+		innerKeys:    make(map[string]StructKind),
+		innerMap:     make(map[string]map[string]value),
+		innerExpire:  make(map[string]int64),
+		mutex:        new(sync.RWMutex),
+		logger:       logger,
+		dbConnection: db,
+		appCfg:       appConfig,
 	}
 
 	for _, opt := range opts {
@@ -92,20 +108,27 @@ func NewStorage(opts ...StorageOption) (*Storage, error) {
 	}
 
 	closeChan := make(chan struct{})
-	go resStorage.startExpirationChecker(closeChan, time.Second*10)
+	go resStorage.startExpirationChecker(closeChan, time.Second*60)
 
 	return resStorage, nil
 }
 
+func (r *Storage) GetConfigPort() string {
+	return r.appCfg.serverCFG.Port
+}
+
 func (r *Storage) getStruct(key string) StructKind {
-	struct_kind, ok := r.innerKeys[key]
+	sKind, ok := r.innerKeys[key]
 	if !ok {
 		return kindNoStruct
 	}
-	return struct_kind
+	return sKind
 }
 
 func (r *Storage) HSET(key string, field string, val any) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	struct_kind := r.getStruct(key)
 	if struct_kind == kindArray || struct_kind == kindScalar {
 		return errors.New("KeyError: this key already exists and has different type")
@@ -127,6 +150,9 @@ func (r *Storage) HSET(key string, field string, val any) error {
 }
 
 func (r *Storage) HGET(key string, field string) *any {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	res, ok := r.hget(key, field)
 
 	if !ok {
@@ -145,6 +171,9 @@ func (r *Storage) HGET(key string, field string) *any {
 }
 
 func (r *Storage) hget(key string, field string) (value, bool) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	res, ok := r.innerMap[key][field]
 	if !ok {
 		return value{}, false
@@ -153,6 +182,9 @@ func (r *Storage) hget(key string, field string) (value, bool) {
 }
 
 func (r *Storage) SET(key string, val any, expireAt int64) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	struct_kind := r.getStruct(key)
 	if struct_kind == kindArray || struct_kind == kindMap {
 		return errors.New("KeyError: this key already exists and has different type")
@@ -170,6 +202,9 @@ func (r *Storage) SET(key string, val any, expireAt int64) error {
 }
 
 func (r *Storage) GET(key string) *any {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	res, ok := r.get(key)
 
 	if !ok {
@@ -182,6 +217,9 @@ func (r *Storage) GET(key string) *any {
 }
 
 func (r *Storage) GetKind(key string) (Kind, bool) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	res, ok := r.get(key)
 	if !ok {
 		return kindUndefind, false
@@ -190,6 +228,9 @@ func (r *Storage) GetKind(key string) (Kind, bool) {
 }
 
 func (r *Storage) get(key string) (value, bool) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	res, ok := r.innerScalar[key]
 	if !ok {
 		return value{}, false
@@ -218,6 +259,9 @@ func getType(val any) Kind {
 }
 
 func (r *Storage) LPUSH(key string, args []any) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	if len(args) == 0 {
 		return errors.New("WrongArgs")
 	}
@@ -249,6 +293,9 @@ func (r *Storage) LPUSH(key string, args []any) error {
 }
 
 func (r *Storage) RPUSH(key string, args []any) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	if len(args) == 0 {
 		return errors.New("WrongArgs")
 	}
@@ -280,6 +327,9 @@ func (r *Storage) RPUSH(key string, args []any) error {
 }
 
 func (r *Storage) RADDTOSET(key string, args []any) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	if len(args) == 0 {
 		return errors.New("WrongArgs")
 	}
@@ -310,14 +360,16 @@ func (r *Storage) RADDTOSET(key string, args []any) error {
 	return nil
 }
 
-func (r *Storage) LPOP(key string, args []any) ([]any, error) {
-	if len(args) > 2 || !allArgsAreInt(args) {
+func (r *Storage) LPOP(key string, args []int) ([]any, error) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	if len(args) > 2 {
 		return nil, errors.New("WrongArgs")
 	}
 
 	if r.isExpired(key) {
 		r.deleteKey(key, kindArray)
-		return nil, errors.New("KeyExpired")
 	}
 
 	trp, ok := r.innerArray[key]
@@ -335,14 +387,16 @@ func (r *Storage) LPOP(key string, args []any) ([]any, error) {
 	return nodes, nil
 }
 
-func (r *Storage) RPOP(key string, args []any) ([]any, error) {
-	if len(args) > 2 || !allArgsAreInt(args) {
+func (r *Storage) RPOP(key string, args []int) ([]any, error) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
+	if len(args) > 2 {
 		return nil, errors.New("WrongArgs")
 	}
 
 	if r.isExpired(key) {
 		r.deleteKey(key, kindArray)
-		return nil, errors.New("KeyExpired")
 	}
 
 	trp, ok := r.innerArray[key]
@@ -361,13 +415,9 @@ func (r *Storage) RPOP(key string, args []any) ([]any, error) {
 	return nodes, nil
 }
 
-func (r *Storage) LSET(key string, args []any) error {
-	if len(args) != 2 {
-		return errors.New("WrongArgs")
-	}
-	if getType(args[0]) != kindInt {
-		return errors.New("WrongArgs")
-	}
+func (r *Storage) LSET(key string, index int, val any) error {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
 	if r.isExpired(key) {
 		r.deleteKey(key, kindArray)
@@ -379,17 +429,16 @@ func (r *Storage) LSET(key string, args []any) error {
 		r.logger.Error("KeyError", zap.String("Key doesn't exist", key))
 		return errors.New("KeyError")
 	}
-	if trp.Set(int(args[0].(float64)), args[1]) {
+	if trp.Set(index, val) {
 		return nil
 	}
 
 	return errors.New("IndexOutOfRange")
 }
 
-func (r *Storage) LGET(key string, args []any) (any, error) {
-	if len(args) != 1 || !allArgsAreInt(args) {
-		return nil, errors.New("WrongArgs")
-	}
+func (r *Storage) LGET(key string, index int) (any, error) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
 
 	if r.isExpired(key) {
 		r.deleteKey(key, kindArray)
@@ -402,7 +451,7 @@ func (r *Storage) LGET(key string, args []any) (any, error) {
 		return nil, errors.New("KeyError")
 	}
 
-	ans, ok := trp.Get(int(args[0].(float64)))
+	ans, ok := trp.Get(index)
 	if !ok {
 		return nil, errors.New("IndexOutOfRange")
 	}
@@ -410,32 +459,10 @@ func (r *Storage) LGET(key string, args []any) (any, error) {
 	return ans, nil
 }
 
-func (r *Storage) HandlerTask(tasks []Task) {
-	for _, iter := range tasks {
-		switch iter.Command {
-		case "GET":
-			r.GET(iter.Key)
-		case "SET":
-			r.SET(iter.Key, iter.Args[0], 0)
-		case "LPUSH":
-			r.LPUSH(iter.Key, iter.Args)
-		case "RPUSH":
-			r.RPUSH(iter.Key, iter.Args)
-		case "RADDTOSET":
-			r.RADDTOSET(iter.Key, iter.Args)
-		case "LPOP":
-			r.LPOP(iter.Key, iter.Args)
-		case "RPOP":
-			r.RPOP(iter.Key, iter.Args)
-		case "LSET":
-			r.LSET(iter.Key, iter.Args)
-		case "LGET":
-			r.LGET(iter.Key, iter.Args)
-		}
-	}
-}
-
 func (r *Storage) Expire(key string, secs int64) int {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	valKind := r.getStruct(key)
 	if valKind == kindNoStruct {
 		return 0
@@ -449,6 +476,9 @@ func (r *Storage) Expire(key string, secs int64) int {
 }
 
 func (r *Storage) getState() StorageCondition {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	inArr := make(map[string][]value)
 	for k, v := range r.innerArray {
 		inArr[k] = v.GetAllValues()
@@ -464,6 +494,9 @@ func (r *Storage) getState() StorageCondition {
 }
 
 func (r *Storage) recoverFromCondition(state StorageCondition) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	fmt.Println(state)
 	r.innerExpire = state.InnerExpire
 
@@ -507,6 +540,9 @@ func (r *Storage) recoverFromCondition(state StorageCondition) {
 }
 
 func (r *Storage) isExpired(key string) bool {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	expireAt := r.innerExpire[key]
 	if expireAt == 0 {
 		return false
@@ -515,6 +551,9 @@ func (r *Storage) isExpired(key string) bool {
 }
 
 func (r *Storage) deleteKey(key string, valKind StructKind) {
+	r.mutex.Lock()
+	defer r.mutex.Unlock()
+
 	switch valKind {
 	case kindScalar:
 		delete(r.innerScalar, key)
@@ -525,21 +564,6 @@ func (r *Storage) deleteKey(key string, valKind StructKind) {
 	}
 	delete(r.innerKeys, key)
 	delete(r.innerExpire, key)
-}
-
-func allArgsAreInt(args []any) bool {
-	for _, arg := range args {
-		switch arg.(type) {
-		case int:
-		case float64:
-			if !isFloatInt(arg) {
-				return false
-			}
-		default:
-			return false
-		}
-	}
-	return true
 }
 
 func isFloatInt(num any) bool {

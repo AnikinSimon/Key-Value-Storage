@@ -31,8 +31,9 @@ const (
 	WHERE version = $1
 	`
 	queryGetLastState = `SELECT * FROM core ORDER BY version DESC LIMIT 1`
-	queryGetALL       = `SELECT * FROM core ORDER BY version DESC LIMIT 1`
 )
+
+const jsonFolder string = "../storage_state/storage_state.json"
 
 type Task struct {
 	Command string `json:"command"`
@@ -46,6 +47,44 @@ type DbState struct {
 	Payload   StorageCondition `json:"payload"`
 }
 
+type appConfig struct {
+	serverCFG serverConfig
+	dbCFG     dbConfig
+}
+
+type serverConfig struct {
+	Port string
+}
+
+type dbConfig struct {
+	ConnectionString string
+}
+
+func getConfig() (*appConfig, error) {
+	serverPort, ok := os.LookupEnv("SERVER_PORT")
+	if !ok {
+		return nil, errors.New("NoServerPort")
+	}
+	postgresUrl, ok := os.LookupEnv("POSTGRES")
+	if !ok {
+		return nil, errors.New("NoDbConnection")
+	}
+	appCfg := &appConfig{
+		serverCFG: serverConfig{
+			Port: serverPort,
+		},
+		dbCFG: dbConfig{
+			ConnectionString: postgresUrl,
+		},
+	}
+	return appCfg, nil
+}
+
+func ErrorHandler(err error) {
+	log.Panic(fmt.Errorf("Error:%w", err))
+	os.Exit(1)
+}
+
 func stateFilePath() string {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -53,44 +92,36 @@ func stateFilePath() string {
 		return ""
 	}
 
-	return path.Join(cwd, "../storage_state/storage_state.json")
+	return path.Join(cwd, jsonFolder)
 }
 
-func (r *Storage) InitializeDb() error {
-	postgresURI := os.Getenv("POSTGRES")
-	db, err := sql.Open("postgres", postgresURI)
+func InitializeDb(appCfg *appConfig) (*sql.DB, error) {
+	db, err := sql.Open("postgres", appCfg.dbCFG.ConnectionString)
 	if err != nil {
 		log.Panic("open", err)
-		return errors.New("Initalize errors")
+		db.Close()
+		return db, errors.New("Initalize errors")
 	}
-
-	defer db.Close()
 
 	if err := db.Ping(); err != nil {
 		log.Panic("ping ", err)
-		return errors.New("Ping errors")
+		db.Close()
+		return db, errors.New("Ping errors")
 	}
 
 	_, err = db.Exec(queryCreateCoreTable)
 	if err != nil {
-		log.Fatal(err)
-		return err
+		log.Panic(err)
+		db.Close()
+		return db, err
 	}
 
-	return nil
+	return db, nil
 }
 
 func (r *Storage) ReadStateFromDB() error {
-	postgresURI := os.Getenv("POSTGRES")
-	db, err := sql.Open("postgres", postgresURI)
-	if err != nil {
-		log.Panic("open", err)
-		return errors.New("Initalize errors")
-	}
 
-	defer db.Close()
-
-	if err := db.Ping(); err != nil {
+	if err := r.dbConnection.Ping(); err != nil {
 		log.Panic("ping", err)
 		return errors.New("Ping errors")
 	}
@@ -99,7 +130,7 @@ func (r *Storage) ReadStateFromDB() error {
 	var timestamp int64
 	var payloadJSON []byte
 
-	err = db.QueryRow(queryGetLastState).Scan(
+	err := r.dbConnection.QueryRow(queryGetLastState).Scan(
 		&version,
 		&timestamp,
 		&payloadJSON,
@@ -125,22 +156,7 @@ func (r *Storage) WriteStateToDB() error {
 	r.mutex.Lock()
 	defer r.mutex.Unlock()
 
-	postgresURI := os.Getenv("POSTGRES")
-	db, err := sql.Open("postgres", postgresURI)
-	if err != nil {
-		log.Panic("open", err)
-		return errors.New("Initalize errors")
-	}
-
-	defer db.Close()
-
-	if err := db.Ping(); err != nil {
-		log.Panic("ping", err)
-		return errors.New("Ping errors")
-	}
-
 	state := r.getState()
-	fmt.Println(state)
 	encodedState, err := json.Marshal(state)
 	if err != nil {
 		r.logger.Error("Json encoding error", zap.Error(err))
@@ -150,27 +166,19 @@ func (r *Storage) WriteStateToDB() error {
 	var lastVersion int64
 
 	timestamp := time.Now().Unix()
-	err = db.QueryRow(querySaveState, timestamp, encodedState).Scan(&lastVersion)
+	err = r.dbConnection.QueryRow(querySaveState, timestamp, encodedState).Scan(&lastVersion)
 
 	if err != nil {
 		r.logger.Error("Write to db error", zap.Error(err))
 		return err
 	}
 
-	_, err = db.Exec(queryDeleteState, lastVersion)
+	_, err = r.dbConnection.Exec(queryDeleteState, lastVersion)
 
 	if err != nil {
 		r.logger.Error("Delete expire state error", zap.Error(err))
 		return err
 	}
-
-	// all, err := db.Exec(queryGetALL)
-	// if err != nil {
-	// 	r.logger.Error("Get all error", zap.Error(err))
-	// 	return err
-	// }
-
-	// fmt.Println(all)
 
 	return nil
 }
@@ -239,4 +247,10 @@ func (r *Storage) WriteStateToFile() error {
 	}
 
 	return nil
+}
+
+func (r *Storage) GracefulShutdown() {
+	defer r.dbConnection.Close()
+	r.WriteStateToDB()
+	r.WriteStateToFile()
 }

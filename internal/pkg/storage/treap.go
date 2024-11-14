@@ -240,17 +240,17 @@ func (trp *Treap) validateIndex(index int) int {
 	}
 }
 
-func (trp *Treap) ValidateEraseSlice(indexes []any, isfromleft bool) (int, int, error) {
+func (trp *Treap) ValidateEraseSlice(indexes []int, isfromleft bool) (int, int, error) {
 	switch len(indexes) {
 	case 2:
-		rt := trp.validateIndex(int(indexes[0].(float64)))
-		lf := trp.validateIndex(int(indexes[1].(float64)))
+		rt := trp.validateIndex(indexes[0])
+		lf := trp.validateIndex(indexes[1])
 		if rt > lf {
 			return 0, 0, errors.New("IndexOutOfRange")
 		}
 		return rt, lf, nil
 	case 1:
-		cnt := int(indexes[0].(float64))
+		cnt := indexes[0]
 		if cnt <= 0 {
 			return 0, 0, errors.New("IndexOutOfRange")
 		}

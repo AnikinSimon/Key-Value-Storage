@@ -17,7 +17,7 @@ func TestHealthPage(t *testing.T) {
 	if err != nil {
 		t.Errorf("Initialize error")
 	}
-	serve := New(":8090", store)
+	serve := New(store)
 
 	w := httptest.NewRecorder()
 	req, _ := http.NewRequest(http.MethodGet, "/health", nil)
@@ -31,7 +31,7 @@ func TestSET(t *testing.T) {
 	if err != nil {
 		t.Errorf("Initialize error")
 	}
-	serve := New("8080", store)
+	serve := New(store)
 
 	testkeys := []string{"key1", "key2", "key3"}
 	testVals := []any{123, "val2", 123.05}
@@ -54,7 +54,7 @@ func TestGET(t *testing.T) {
 	if err != nil {
 		t.Errorf("Initialize error")
 	}
-	serve := New("8080", store)
+	serve := New(store)
 
 	testkeys := []string{"key1", "key2", "key3"}
 	testVals := []any{float64(123), "val2", float64(1234)}
@@ -84,7 +84,7 @@ func TestHSET(t *testing.T) {
 	if err != nil {
 		t.Errorf("Initialize error")
 	}
-	serve := New("8080", store)
+	serve := New(store)
 
 	testkeys := []string{"key1", "key2", "key3"}
 	testVals := []any{123, "val2", 123.05}
@@ -107,7 +107,7 @@ func TestHGET(t *testing.T) {
 	if err != nil {
 		t.Errorf("Initialize error")
 	}
-	serve := New("8080", store)
+	serve := New(store)
 
 	testkeys := []string{"key1", "key2", "key3"}
 	testVals := []any{float64(123), "val2", float64(1234)}
@@ -137,7 +137,7 @@ func TestLPUSH(t *testing.T) {
 	if err != nil {
 		t.Errorf("Initialize error")
 	}
-	serve := New("8080", store)
+	serve := New(store)
 
 	testkeys := []string{"key1", "key2", "key3", "key4"}
 	testVals := [][]any{
@@ -165,7 +165,7 @@ func TestRPUSH(t *testing.T) {
 	if err != nil {
 		t.Errorf("Initialize error")
 	}
-	serve := New("8080", store)
+	serve := New(store)
 
 	testkeys := []string{"key1", "key2", "key3", "key4"}
 	testVals := [][]any{
@@ -193,7 +193,7 @@ func TestLPOP(t *testing.T) {
 	if err != nil {
 		t.Errorf("Initialize error")
 	}
-	serve := New("8080", store)
+	serve := New(store)
 
 	testkeys := []string{"key1", "key2", "key3"}
 	testVals := [][]any{
@@ -241,7 +241,7 @@ func TestRPOP(t *testing.T) {
 	if err != nil {
 		t.Errorf("Initialize error")
 	}
-	serve := New("8080", store)
+	serve := New(store)
 
 	testkeys := []string{"key1", "key2", "key3"}
 	testVals := [][]any{
@@ -289,7 +289,7 @@ func TestRADDTOSET(t *testing.T) {
 	if err != nil {
 		t.Errorf("Initialize error")
 	}
-	serve := New("8080", store)
+	serve := New(store)
 
 	testkeys := []string{"key1", "key2", "key3"}
 	testVals := [][]any{
@@ -338,7 +338,7 @@ func TestLSET(t *testing.T) {
 	if err != nil {
 		t.Errorf("Initialize error")
 	}
-	serve := New("8080", store)
+	serve := New(store)
 
 	testkeys := []string{"key1", "key2", "key3"}
 	testVals := [][]any{
@@ -377,7 +377,7 @@ func TestLGET(t *testing.T) {
 	if err != nil {
 		t.Errorf("Initialize error")
 	}
-	serve := New("8080", store)
+	serve := New(store)
 
 	testkeys := []string{"key1", "key2", "key3"}
 	testVals := [][]any{

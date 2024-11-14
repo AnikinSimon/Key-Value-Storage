@@ -2,30 +2,31 @@ services:
   postgres:
     image: postgres:13.3
     environment:
-      POSTGRES_DB: "storage"
-      POSTGRES_USER: "Semyon"
-      POSTGRES_PASSWORD: "Mypass"
+      POSTGRES_DB: "core"
+      POSTGRES_USER: "username"
+      POSTGRES_PASSWORD: "password"
     ports:
-        - "5432:5432"
+      - "5432:5432"
     volumes:
-        - postgres:/var/lib/postgresql/data
+      - postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U username -d core"]
+      interval: 3s
+      timeout: 2s
+      retries: 2
+    
   server:
-    restart: always
     depends_on:
-        - "postgres"
+      postgres:
+        condition: service_healthy
     image: server:0.0.1
-    build:
-        dockerfile: Dockerfile.server
-        context: .
     container_name: docker-server
     ports:
-      - "8090:8090"
+      - "8090:8090" 
     environment:
       SERVER_PORT: 8090
-      POSTGRES: postgresql://Semyon:Mypass@localhost:5432/storage?sslmode=disable
-    volumes:
-    - ./storage_state:/storage_state
+      POSTGRES: "postgresql://username:password@postgres:5432/core?sslmode=disable"
+      TIMELOOP: 5
 
 volumes:
   postgres:
-  storage_state:

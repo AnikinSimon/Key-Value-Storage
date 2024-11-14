@@ -27,9 +27,22 @@ type EntryArray struct {
 	Value []any `json:"value"`
 }
 
-func New(host string, st *storage.Storage) *Server {
+type EntryListPOP struct {
+	Slices []int `json:"slices"`
+}
+
+type EntryLGET struct {
+	Index int `json:"index"`
+}
+
+type EntryLSET struct {
+	Index int `json:"index"`
+	Value any `json:"value"`
+}
+
+func New(st *storage.Storage) *Server {
 	s := &Server{
-		host:  host,
+		host:  ":8090",
 		store: st,
 	}
 
@@ -76,7 +89,7 @@ func (r *Server) handlerSet(ctx *gin.Context) {
 	err := r.store.SET(key, v.Value, int64(v.Ex))
 	if err != nil {
 		fmt.Println(err)
-		ctx.AbortWithStatusJSON(http.StatusBadGateway, gin.H{
+		ctx.AbortWithStatusJSON(http.StatusBadRequest, gin.H{
 			"status":  false,
 			"message": err.Error(),
 		})
@@ -181,14 +194,14 @@ func (r *Server) handlerRADDTOSET(ctx *gin.Context) {
 func (r *Server) handlerRPOP(ctx *gin.Context) {
 	key := ctx.Param("key")
 
-	var v EntryArray
+	var v EntryListPOP
 
 	if err := json.NewDecoder(ctx.Request.Body).Decode(&v); err != nil {
 		ctx.AbortWithStatus(http.StatusBadGateway)
 		return
 	}
 
-	vals, err := r.store.RPOP(key, v.Value)
+	vals, err := r.store.RPOP(key, v.Slices)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadGateway, gin.H{
 			"status":  false,
@@ -227,14 +240,14 @@ func (r *Server) handlerLPUSH(ctx *gin.Context) {
 func (r *Server) handleLPOP(ctx *gin.Context) {
 	key := ctx.Param("key")
 
-	var v EntryArray
+	var v EntryListPOP
 
 	if err := json.NewDecoder(ctx.Request.Body).Decode(&v); err != nil {
 		ctx.AbortWithStatus(http.StatusBadGateway)
 		return
 	}
 
-	vals, err := r.store.LPOP(key, v.Value)
+	vals, err := r.store.LPOP(key, v.Slices)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadGateway, gin.H{
 			"status":  false,
@@ -251,7 +264,7 @@ func (r *Server) handleLPOP(ctx *gin.Context) {
 func (r *Server) handlerLSET(ctx *gin.Context) {
 	key := ctx.Param("key")
 
-	var v EntryArray
+	var v EntryLSET
 
 	if err := json.NewDecoder(ctx.Request.Body).Decode(&v); err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadGateway, gin.H{
@@ -261,7 +274,7 @@ func (r *Server) handlerLSET(ctx *gin.Context) {
 		return
 	}
 
-	err := r.store.LSET(key, v.Value)
+	err := r.store.LSET(key, v.Index, v.Value)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadGateway, gin.H{
 			"status":  false,
@@ -276,14 +289,14 @@ func (r *Server) handlerLSET(ctx *gin.Context) {
 func (r *Server) handleLGET(ctx *gin.Context) {
 	key := ctx.Param("key")
 
-	var v EntryArray
+	var v EntryLGET
 
 	if err := json.NewDecoder(ctx.Request.Body).Decode(&v); err != nil {
 		ctx.AbortWithStatus(http.StatusBadGateway)
 		return
 	}
 
-	vals, err := r.store.LGET(key, v.Value)
+	vals, err := r.store.LGET(key, v.Index)
 	if err != nil {
 		ctx.AbortWithStatusJSON(http.StatusBadGateway, gin.H{
 			"status":  false,
@@ -307,7 +320,7 @@ func (r *Server) handlerExpire(ctx *gin.Context) {
 	}
 
 	expireCode := r.store.Expire(key, int64(v.Value.(float64)))
-	
+
 	ctx.JSON(http.StatusOK, Entry{
 		Value: expireCode,
 	})
