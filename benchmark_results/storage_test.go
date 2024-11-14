@@ -12,9 +12,8 @@ func BenchmarkGet(b *testing.B) {
 		return
 	}
 
-
 	for i := 0; i < b.N; i++ {
-		s.SET(strconv.Itoa(i), strconv.Itoa(i))
+		s.SET(strconv.Itoa(i), strconv.Itoa(i), 0)
 	}
 
 	b.ResetTimer()
@@ -24,8 +23,6 @@ func BenchmarkGet(b *testing.B) {
 	}
 }
 
-// Отдельный бенчмарк для приватного гета лежит в файле storage_test.go в папке storage
-
 func BenchmarkGetKind(b *testing.B) {
 	s, err := storage.NewStorage(storage.WithoutLogging())
 	if err != nil {
@@ -33,7 +30,7 @@ func BenchmarkGetKind(b *testing.B) {
 	}
 
 	for i := 0; i < b.N; i++ {
-		s.SET(strconv.Itoa(i), strconv.Itoa(i))
+		s.SET(strconv.Itoa(i), strconv.Itoa(i), 0)
 	}
 
 	b.ResetTimer()
@@ -52,7 +49,7 @@ func BenchmarkSet(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		keyVal := strconv.Itoa(i)
-		s.SET(keyVal, keyVal)
+		s.SET(keyVal, keyVal, 0)
 	}
 }
 
@@ -64,7 +61,7 @@ func BenchmarkGetSet(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		keyVal := strconv.Itoa(i)
-		s.SET(keyVal, keyVal)
+		s.SET(keyVal, keyVal, 0)
 		s.GET(keyVal)
 	}
 }

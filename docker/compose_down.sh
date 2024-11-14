@@ -1,0 +1,1 @@
+docker compose -f ./docker/server.yaml down --volumes

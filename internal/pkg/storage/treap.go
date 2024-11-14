@@ -56,6 +56,7 @@ func (trp Treap) incVal(val value) {
 }
 
 func (trp Treap) decVal(val value) {
+
 	if cnt := trp.mp[val]; cnt != 1 {
 		trp.mp[val] -= 1
 	} else {
@@ -104,33 +105,35 @@ func split(n *node, k int) (*node, *node) {
 	}
 }
 
-func (trp *Treap) PushBack(val any) {
+func (trp *Treap) PushBack(val any) error {
 	new_node, err := newNode(val)
 	if err != nil {
-		return
+		return err
 	}
 	trp.root = merge(trp.root, new_node)
 	trp.incVal(new_node.value)
+	return nil
 }
 
-func (trp *Treap) PushFront(val any) {
+func (trp *Treap) PushFront(val any) error {
 	new_node, err := newNode(val)
 	if err != nil {
-		return
+		return err
 	}
 	trp.root = merge(new_node, trp.root)
 	trp.incVal(new_node.value)
+	return nil
 }
 
-func (trp *Treap) PushBackToSet(val any) {
+func (trp *Treap) PushBackToSet(val any) error {
 	new_node, err := newNode(val)
 	if err != nil {
-		return
+		return err
 	}
 	if _, ok := trp.mp[new_node.value]; !ok {
 		trp.PushBack(val)
-		trp.incVal(new_node.value)
 	}
+	return nil
 }
 
 func (trp *Treap) Get(index int) (any, bool) {
@@ -140,7 +143,7 @@ func (trp *Treap) Get(index int) (any, bool) {
 	var less, equal, greater *node
 	less, greater = split(trp.root, index)
 	equal, greater = split(greater, 1)
-	res := equal.value
+	res := equal.value.Val
 	trp.root = merge(merge(less, equal), greater)
 	return res, true
 }
@@ -237,17 +240,17 @@ func (trp *Treap) validateIndex(index int) int {
 	}
 }
 
-func (trp *Treap) ValidateEraseSlice(indexes []any, isfromleft bool) (int, int, error) {
+func (trp *Treap) ValidateEraseSlice(indexes []int, isfromleft bool) (int, int, error) {
 	switch len(indexes) {
 	case 2:
-		rt := trp.validateIndex(int(indexes[0].(float64)))
-		lf := trp.validateIndex(int(indexes[1].(float64)))
+		rt := trp.validateIndex(indexes[0])
+		lf := trp.validateIndex(indexes[1])
 		if rt > lf {
 			return 0, 0, errors.New("IndexOutOfRange")
 		}
 		return rt, lf, nil
 	case 1:
-		cnt := int(indexes[0].(float64))
+		cnt := indexes[0]
 		if cnt <= 0 {
 			return 0, 0, errors.New("IndexOutOfRange")
 		}

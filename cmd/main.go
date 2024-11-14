@@ -2,9 +2,7 @@ package main
 
 import (
 	"golangProject/internal/pkg/server"
-	"fmt"
 	"golangProject/internal/pkg/storage"
-	"log"
 	"os"
 	"os/signal"
 	"syscall"
@@ -13,11 +11,12 @@ import (
 func main() {
 	store, err := storage.NewStorage(storage.WithoutLogging())
 	if err != nil {
-		log.Panic(fmt.Errorf("InitializingError: %w", err))
+		storage.ErrorHandler(err)
 	}
-	store.ReadStateFromFile() // считывание состояния бд из .json
-	serve := server.New(":8090", &store)
 
+	store.ReadStateFromDB() 
+
+	serve := server.New(store)
 	sigChan := make(chan os.Signal, 1)
 	signal.Notify(sigChan, os.Interrupt, syscall.SIGTERM)
 
@@ -26,5 +25,5 @@ func main() {
 	}()
 	<-sigChan
 
-	store.WriteStateToFile()
+	store.GracefulShutdown()
 }
